@@ -128,6 +128,86 @@ public class URLScan extends Scan {
     }
 
     @Override
+    public void printSummary() {
+        super.printSummary();
+        
+        // In thêm chi tiết về các kết quả malicious
+        if (getTime() != 0 && getMalicious() > 0) {
+            printMaliciousDetails();
+        }
+    }
+    
+    /**
+     * In ra chi tiết các kết quả malicious từ API response
+     */
+    public void printMaliciousDetails() {
+        if (getJson() == null) {
+            System.out.println("No data available for detailed analysis.");
+            return;
+        }
+        
+        try {
+            System.out.println("\n>>> MALICIOUS DETAILS <<<");
+            System.out.println("Found " + getMalicious() + " malicious detections:");
+            
+            // Lấy kết quả phân tích từ API response
+            JSONObject analysisResults = getJson().getJSONObject("data").getJSONObject(GET_ATTR).getJSONObject("last_analysis_results");
+            
+            // Tạo danh sách các engine đã phát hiện malicious
+            List<JSONObject> maliciousEngines = new ArrayList<>();
+            Iterator<String> keys = analysisResults.keys();
+            
+            while (keys.hasNext()) {
+                String key = keys.next();
+                JSONObject engine = analysisResults.getJSONObject(key);
+                
+                // Kiểm tra nếu engine này đã phát hiện malicious
+                if (engine.getString("category").equals(MAL)) {
+                    maliciousEngines.add(engine);
+                }
+            }
+            
+            // Sắp xếp theo tên engine
+            Collections.sort(maliciousEngines, (j1, j2) -> {
+                String name1 = j1.getString(ENGINE);
+                String name2 = j2.getString(ENGINE);
+                return name1.compareToIgnoreCase(name2);
+            });
+            
+            // In ra chi tiết từng engine
+            for (JSONObject engine : maliciousEngines) {
+                String engineName = engine.getString(ENGINE);
+                String result = engine.isNull("result") ? "No specific result" : engine.getString("result");
+                
+                System.out.println("- " + engineName + ": " + result);
+            }
+            
+            // In ra các tên mối đe dọa (threat names) nếu có
+            JSONArray threatNames = getJson().getJSONObject("data").getJSONObject(GET_ATTR).getJSONArray("threat_names");
+            if (threatNames.length() > 0) {
+                System.out.println("\nThreat Names:");
+                for (int i = 0; i < threatNames.length(); i++) {
+                    System.out.println("- " + threatNames.getString(i));
+                }
+            }
+            
+            // In ra các danh mục (categories) nếu có
+            JSONObject categories = getJson().getJSONObject("data").getJSONObject(GET_ATTR).getJSONObject("categories");
+            if (categories.length() > 0) {
+                System.out.println("\nCategories:");
+                keys = categories.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    System.out.println("- " + key + ": " + categories.getString(key));
+                }
+            }
+            
+        } catch (Exception e) {
+            System.out.println("Error getting malicious details: " + e.getMessage());
+        }
+    }
+
+    @Override
     public void writeExcel(XSSFSheet sheet) {
         if (sheet == null) {
             System.out.println("ERROR: Can't write anything.");
@@ -236,6 +316,30 @@ public class URLScan extends Scan {
             CellUtil.getCell(row, 6).setCellValue(key);
             CellUtil.getCell(row, 7).setCellValue(json.getString(key));
             iRow++;
+        }
+    }
+
+    public void reAnalyze(String apikey) throws IOException, InterruptedException {
+        if (getObjectId() == null) {
+            throw new IllegalArgumentException("URL ID is required for re-analysis");
+        }
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://www.virustotal.com/api/v3/urls/" + getObjectId() + "/analyse"))
+                .header("accept", "application/json")
+                .header("x-apikey", apikey)
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        JSONObject json = new JSONObject(response.body());
+
+        if (json.has("data")) {
+            String analysisId = json.getJSONObject("data").getString("id");
+            setAnalysisId(analysisId);
+        } else {
+            throw new IOException("Failed to get analysis ID from response");
         }
     }
 }
