@@ -75,6 +75,7 @@ public class FileScan extends Scan {
         //UPDATE AnalysisId
         try {
             this.setAnalysisId(json.getJSONObject("data").getString("id"));
+            System.out.println("Analysis ID: " + this.getAnalysisId());
         } catch (Exception e) {
             try {
                 System.out.println(ERR + json.getJSONObject(ERR_ATTR).getString(ERR_MESS) + " (" + json.getJSONObject(ERR_ATTR).getString("code") + ")");
@@ -107,8 +108,10 @@ public class FileScan extends Scan {
 
     @Override
     public void getReport(String apikey) throws IOException, InterruptedException {
-        if (getObjectId() == null)
+        if (getObjectId() == null) {
+            System.out.println("ERROR: No analysis ID found!");
             return;
+        }
 
         //SEND REANALYSE req if already get report before
         if (getJson() != null) {
@@ -183,9 +186,11 @@ public class FileScan extends Scan {
         System.out.println("Name: " + getName());
         if (getObjectId() != null) System.out.println("ID: " + getObjectId());
         if (getTime() == 0) {
-            System.out.println("> WARNING: No finished analysis found!\n(Please wait a few seconds and update)");
+            System.out.println("> WARNING: No finished analysis found!");
+            System.out.println("(Please wait a few seconds and try again)");
             return;
         }
+        
         System.out.println("> Analysis stats");
         DateTimeFormatter dateformat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
         System.out.println("Time: " + dateformat.format(Instant.ofEpochSecond(getTime())));
@@ -409,6 +414,56 @@ public class FileScan extends Scan {
         }
         byteArrays.add(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
         return BodyPublishers.ofByteArrays(byteArrays);
+    }
+
+    /**
+     * Lấy báo cáo file bằng ID (SHA-256, MD5, ...)
+     * @param id ID của file (SHA-256, MD5, ...)
+     * @param apikey API key của VirusTotal
+     * @throws IOException Nếu có lỗi khi gửi request
+     * @throws InterruptedException Nếu request bị gián đoạn
+     */
+    public void getFileReport(String id, String apikey) throws IOException, InterruptedException {
+        if (id == null || id.isEmpty()) {
+            throw new IllegalArgumentException("File ID is required");
+        }
+
+        // Thiết lập ID cho đối tượng FileScan
+        setObjectId(id);
+        
+        // Gọi phương thức getReport để lấy báo cáo
+        // getReport(apikey);
+    }
+
+    /**
+     * Lấy URL tải xuống file từ VirusTotal
+     * @param id ID của file (SHA-256, MD5, ...)
+     * @param apikey API key của VirusTotal
+     * @return URL tải xuống file
+     * @throws IOException Nếu có lỗi khi gửi request
+     * @throws InterruptedException Nếu request bị gián đoạn
+     */
+    public String getFileDownloadURL(String id, String apikey) throws IOException, InterruptedException {
+        if (id == null || id.isEmpty()) {
+            throw new IllegalArgumentException("File ID is required");
+        }
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://www.virustotal.com/api/v3/files/" + id + "/download_url"))
+                .header("accept", "application/json")
+                .header("x-apikey", apikey)
+                .GET()
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        JSONObject json = new JSONObject(response.body());
+
+        if (json.has("data")) {
+            return json.getString("data");
+        } else {
+            throw new IOException("Failed to get download URL from response");
+        }
     }
 
 }

@@ -32,20 +32,29 @@ public class IPScan extends Scan {
 
     @Override
     public boolean isValid() {
+        if (getName() == null || getName().isEmpty()) {
+            System.out.println("ERROR: IP address is empty or null");
+            return false;
+        }
+        
         Matcher matcher = pattern.matcher(getName());
         if (matcher.matches()) {
             setObjectId(getName());
+            System.out.println("");
             return true;
-        }
-        else
+        } else {
+            System.out.println("ERROR: Invalid IP address format: " + getName());
             setName(null);
-        return false;
+            return false;
+        }
     }
 
     @Override
     public void getReport(String apikey) throws IOException, InterruptedException {
-        if (getObjectId() == null)
+        if (getObjectId() == null) {
+            System.out.println("ERROR: No IP address provided for scanning");
             return;
+        }
 
         //GET REPORT req
         HttpRequest request = HttpRequest.newBuilder()
@@ -62,16 +71,20 @@ public class IPScan extends Scan {
         //SET ATTRIBUTES
         try {
             //GET BASIC INFO
-            setName(json.getJSONObject("data").getJSONObject(GET_ATTR).getString("network"));
-            setObjectId(json.getJSONObject("data").getString("id"));
+            if (json.has("data") && json.getJSONObject("data").has(GET_ATTR)) {
+                setName(json.getJSONObject("data").getJSONObject(GET_ATTR).getString("network"));
+                setObjectId(json.getJSONObject("data").getString("id"));
 
-            //GET ANALYSIS
-            setTime(json.getJSONObject("data").getJSONObject(GET_ATTR).getInt("last_analysis_date"));
-            setHarmless(json.getJSONObject("data").getJSONObject(GET_ATTR).getJSONObject(LAST_STATS).getInt(HARM));
-            setUndetected(json.getJSONObject("data").getJSONObject(GET_ATTR).getJSONObject(LAST_STATS).getInt("undetected"));
-            setMalicious(json.getJSONObject("data").getJSONObject(GET_ATTR).getJSONObject(LAST_STATS).getInt(MAL));
-            setSuspicious(json.getJSONObject("data").getJSONObject(GET_ATTR).getJSONObject(LAST_STATS).getInt("suspicious"));
-            setTimeout(json.getJSONObject("data").getJSONObject(GET_ATTR).getJSONObject(LAST_STATS).getInt("timeout"));
+                //GET ANALYSIS
+                setTime(json.getJSONObject("data").getJSONObject(GET_ATTR).getInt("last_analysis_date"));
+                setHarmless(json.getJSONObject("data").getJSONObject(GET_ATTR).getJSONObject(LAST_STATS).getInt(HARM));
+                setUndetected(json.getJSONObject("data").getJSONObject(GET_ATTR).getJSONObject(LAST_STATS).getInt("undetected"));
+                setMalicious(json.getJSONObject("data").getJSONObject(GET_ATTR).getJSONObject(LAST_STATS).getInt(MAL));
+                setSuspicious(json.getJSONObject("data").getJSONObject(GET_ATTR).getJSONObject(LAST_STATS).getInt("suspicious"));
+                setTimeout(json.getJSONObject("data").getJSONObject(GET_ATTR).getJSONObject(LAST_STATS).getInt("timeout"));
+            } else {
+                System.out.println("ERROR: Invalid response format from VirusTotal API");
+            }
         } catch (Exception e) {
             try {
                 System.out.println("ERROR: " + json.getJSONObject("error").getString("message") + " (" + json.getJSONObject("error").getString("code") + ")");

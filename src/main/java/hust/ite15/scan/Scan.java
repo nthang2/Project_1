@@ -56,7 +56,7 @@ public abstract class Scan {
         System.out.println("\n>>> ANALYSIS SUMMARY <<<");
         System.out.println("> Info");
         System.out.println("Name: " + name);
-        if (!objectId.equals(name))
+        if (objectId != null && !objectId.equals(name))
             System.out.println("ID: " + objectId);
         if (getTime() == 0) {
             System.out.println("> WARNING: No finished analysis found!\n(Please wait a few seconds and update)");

@@ -20,6 +20,7 @@ public class Main {
         } catch (IOException e) {
             return false;
         }
+        
     }
 
     private static void mainLoop() {
@@ -31,10 +32,10 @@ public class Main {
         System.out.println(" / / / /_/ / /_/ /_/ / / ____/ /  / /_/ / /_/  __/ ,< / /_  ");
         System.out.println("/_/  \\____/\\__/\\__,_/_/_/   /_/   \\____/\\__/\\___/_/|_|\\__/  ");
         System.out.println();
-        System.out.println("1. Scan a file");
-        System.out.println("2. Scan a domain");
-        System.out.println("3. Scan an URL");
-        System.out.println("4. Scan an IP address");
+        System.out.println("1. File");
+        System.out.println("2. Domain");
+        System.out.println("3. URL");
+        System.out.println("4. IP address");
         System.out.println("5. Exit");
 
         System.out.printf("\nEnter a choice: ");
@@ -48,12 +49,23 @@ public class Main {
         }
 
         switch (choice) {
-            case 1 -> Handler.fileScan(apiKey);
-            case 2 -> Handler.domainScan(apiKey);
-            case 3 -> Handler.urlScan(apiKey);
-            case 4 -> Handler.ipScan(apiKey);
-            case 5 -> running = false;
-            default -> System.out.println("Invalid input!");
+            case 1:
+                Handler.fileScan(apiKey);
+                break;
+            case 2:
+                Handler.domainScan(apiKey);
+                break;
+            case 3:
+                Handler.urlScan(apiKey);
+                break;
+            case 4:
+                Handler.ipScan(apiKey);
+                break;
+            case 5:
+                running = false;
+                break;
+            default:
+                System.out.println("Invalid input!");
         }
     }
 
