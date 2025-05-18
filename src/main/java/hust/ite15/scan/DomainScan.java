@@ -31,24 +31,32 @@ public class DomainScan extends Scan {
 
     @Override
     public boolean isValid() {
+        if (getName() == null) {
+            System.out.println("ERROR: Domain name is null.");
+            return false;
+        }
+        
         Matcher matcher = pattern.matcher(getName());
         if (matcher.matches()) {
             setObjectId(getName());
+            System.out.println("Domain validated: " + getName());
             return true;
         }
-        else
-            setName(null);
+        
+        System.out.println("ERROR: Invalid domain format.");
+        setName(null);
         return false;
     }
 
     @Override
     public void getReport(String apikey) throws IOException, InterruptedException {
-        if (getObjectId() == null)
-            return;
-
+        // if (getObjectId() == null){
+        //     System.out.println("ERROR: Object ID is null.");
+        //     return;
+        // }
         //GET REPORT req
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://www.virustotal.com/api/v3/domains/" + getObjectId()))
+                .uri(URI.create("https://www.virustotal.com/api/v3/domains/" + getName()))
                 .header("accept", "application/json")
                 .header("x-apikey", apikey)
                 .method("GET", HttpRequest.BodyPublishers.noBody())

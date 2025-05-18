@@ -26,12 +26,11 @@ public class Main {
     private static void mainLoop() {
         int choice = 0;
 
-        System.out.println("  ______      __        ______             __       __   __ ");
-        System.out.println(" /_  __/___  / /_____ _/ / __ \\_________  / /____  / /__/ /_");
-        System.out.println("  / / / __ \\/ __/ __ `/ / /_/ / ___/ __ \\/ __/ _ \\/ //_/ __/");
-        System.out.println(" / / / /_/ / /_/ /_/ / / ____/ /  / /_/ / /_/  __/ ,< / /_  ");
-        System.out.println("/_/  \\____/\\__/\\__,_/_/_/   /_/   \\____/\\__/\\___/_/|_|\\__/  ");
-        System.out.println();
+        System.out.println(" __   ___             _       _        _   ___               ");
+        System.out.println(" \\ \\ / (_)_ _ _  _ __| |_ ___| |_ __ _| | / __| __ __ _ _ _  ");
+        System.out.println("  \\ V /| | '_| || (_-<  _/ _ \\  _/ _` | | \\__ \\/ _/ _` | ' \\ ");
+        System.out.println("   \\_/ |_|_|  \\_,_/__/\\__\\___/\\__\\__,_|_| |___/\\__\\__,_|_||_|");
+        System.out.println("                                                             ");
         System.out.println("1. File");
         System.out.println("2. Domain");
         System.out.println("3. URL");

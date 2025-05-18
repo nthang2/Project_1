@@ -109,6 +109,7 @@ public class Handler {
         DomainScan domainScan = new DomainScan();
         domainScan.setName(domain);
         try {
+            domainScan.isValid();
             domainScan.post(apikey);
             waitForAnalysis(domainScan, apikey);
         } catch (Exception e) {
