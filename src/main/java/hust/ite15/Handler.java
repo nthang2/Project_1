@@ -1,7 +1,12 @@
 package hust.ite15;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.util.Scanner;
+
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
 import hust.ite15.scan.*;
 
 public class Handler {
@@ -11,8 +16,8 @@ public class Handler {
         System.out.printf("\nFILE ANALYSIS\n");
         System.out.println("1. Upload a file");
         System.out.println("2. Enter file's MD5/SHA-1/SHA-256 or ID hash");
-        System.out.println("3. Get file download URL");
-        System.out.println("4. Get file behaviour summary");
+        System.out.println("3. Get file behaviour summary");
+        System.out.println("4. Write Excel report from hash");
 
         System.out.printf("\nEnter a choice: ");
 
@@ -42,6 +47,7 @@ public class Handler {
                 try {
                     fileScan.post(apikey);
                     waitForAnalysis(fileScan, apikey);
+
                 } catch (Exception e) {
                     System.out.println("Error scanning file: " + e.getMessage());
                 }
@@ -59,28 +65,13 @@ public class Handler {
                     System.out.println("Getting report for hash: " + hash);
                     fileScan.getFileReport(hash, apikey);
                     waitForAnalysis(fileScan, apikey);
+
                 } catch (Exception e) {
                     System.out.println("Error getting file report: " + e.getMessage());
                 }
             }
-            case 3 -> {
-                System.out.print("Enter file hash (SHA-256, MD5, ...): ");
-                String hash = input.nextLine().strip();
-                if (!hash.matches("[a-fA-F0-9]{32}|[a-fA-F0-9]{40}|[a-fA-F0-9]{64}")) {
-                    System.out.println("Invalid hash!");
-                    return;
-                }
 
-                FileScan fileScan = new FileScan();
-                try {
-                    System.out.println("Getting download URL for hash: " + hash);
-                    String downloadUrl = fileScan.getFileDownloadURL(hash, apikey);
-                    System.out.println("Download URL: " + downloadUrl);
-                } catch (Exception e) {
-                    System.out.println("Error getting download URL: " + e.getMessage());
-                }
-            }
-            case 4 -> {
+            case 3 -> {
                 System.out.print("Enter file hash or ID (SHA-256, MD5, ...): ");
                 String hash = input.nextLine().strip();
                 if (!hash.matches("[a-fA-F0-9]{32}|[a-fA-F0-9]{40}|[a-fA-F0-9]{64}")) {
@@ -92,9 +83,38 @@ public class Handler {
                 try {
                     System.out.println("Getting behaviour summary for hash: " + hash);
                     fileBehaviours.getBehaviourSummary(hash, apikey);
-                    fileBehaviours.printBehaviourSummary();
+                    fileBehaviours.printBehaviourSummaryToTxt("analysis_results/file_behaviour" + fileBehaviours.getObjectId() + ".txt");
+                    System.out.println("The report has been generated to analysis_results folder.");
                 } catch (Exception e) {
                     System.out.println("Error getting behaviour summary: " + e.getMessage());
+                }
+            }
+            case 4 -> {
+                System.out.print("Enter hash: ");
+                String hash = input.nextLine().strip();
+                if (!hash.matches("[a-fA-F0-9]{32}|[a-fA-F0-9]{40}|[a-fA-F0-9]{64}")) {
+                    System.out.println("Invalid hash!");
+                    return;
+                }
+
+                FileScan fileScan = new FileScan();
+                try {
+                    System.out.println("Getting report for hash: " + hash);
+                    fileScan.getFileReport(hash, apikey);
+                    waitForAnalysis(fileScan, apikey);
+
+                } catch (Exception e) {
+                    System.out.println("Error getting file report: " + e.getMessage());
+                }
+                XSSFWorkbook workbook = new XSSFWorkbook();
+                XSSFSheet sheet = workbook.createSheet("Analysis Result");
+                fileScan.writeExcel(sheet);
+                try (FileOutputStream out = new FileOutputStream("analysis_results/result_analysis_" + fileScan.getObjectId() + ".xlsx")) {
+                    workbook.write(out);
+                    System.out.println("Excel report has been generated successfully.");
+                }
+                catch (Exception e) {
+                    System.out.println("Error writing Excel report: " + e.getMessage());
                 }
             }
             default -> System.out.println("Invalid input!");
@@ -114,6 +134,16 @@ public class Handler {
             waitForAnalysis(domainScan, apikey);
         } catch (Exception e) {
             System.out.println("Error scanning domain: " + e.getMessage());
+        }
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("Analysis Result");
+        domainScan.writeExcel(sheet);
+        try (FileOutputStream out = new FileOutputStream("analysis_results/domain_analysis_" + domainScan.getObjectId() + ".xlsx")) {
+            workbook.write(out);
+            System.out.println("Excel report has been generated to analysis_results folder.");
+        }
+        catch (Exception e) {
+            System.out.println("Error writing Excel report: " + e.getMessage());
         }
     }
 
@@ -151,6 +181,46 @@ public class Handler {
         } catch (Exception e) {
             System.out.println("Error scanning URL: " + e.getMessage());
         }
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("Analysis Result");
+        urlScan.writeExcel(sheet);
+        try (FileOutputStream out = new FileOutputStream("analysis_results/url_analysis_" + urlScan.getObjectId() + ".xlsx")) {
+            workbook.write(out);
+            System.out.println("Excel report has been generated to analysis_results folder.");
+        }
+        catch (Exception e) {
+            System.out.println("Error writing Excel report: " + e.getMessage());
+        }
+    }
+
+    private static void urlRescan(String apikey) {
+        System.out.printf("\nEnter URL ID to rescan: ");
+        String urlId = input.nextLine().strip();
+        
+        URLScan urlScan = new URLScan();
+        urlScan.setObjectId(urlId);
+        try {
+            System.out.println("Sending rescan request...");
+            urlScan.reAnalyze(apikey);
+            
+            System.out.println("Waiting for analysis to complete...");
+            waitForAnalysis(urlScan, apikey);
+            
+            System.out.println("Rescan completed successfully!");
+        } catch (Exception e) {
+            System.out.println("Error during URL rescan: " + e.getMessage());
+        }
+
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("Analysis Result");
+        urlScan.writeExcel(sheet);
+        try (FileOutputStream out = new FileOutputStream("analysis_results/url_analysis_" + urlScan.getObjectId() + ".xlsx")) {
+            workbook.write(out);
+            System.out.println("Excel report has been generated to analysis_results folder.");
+        }
+        catch (Exception e) {
+            System.out.println("Error writing Excel report: " + e.getMessage());
+        }
     }
 
     public static void ipScan(String apikey) {
@@ -173,6 +243,17 @@ public class Handler {
             waitForAnalysis(ipScan, apikey);
         } catch (Exception e) {
             System.out.println("Error scanning IP: " + e.getMessage());
+        }
+
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("Analysis Result");
+        ipScan.writeExcel(sheet);
+        try (FileOutputStream out = new FileOutputStream("analysis_results/IP_analysis_" + ipScan.getObjectId() + ".xlsx")) {
+            workbook.write(out);
+            System.out.println("Excel report has been generated to analysis_results folder.");
+        }
+        catch (Exception e) {
+            System.out.println("Error writing Excel report: " + e.getMessage());
         }
     }
     
@@ -207,22 +288,5 @@ public class Handler {
         scan.printSummary();
     }
 
-    private static void urlRescan(String apikey) {
-        System.out.printf("\nEnter URL ID to rescan: ");
-        String urlId = input.nextLine().strip();
-        
-        URLScan urlScan = new URLScan();
-        urlScan.setObjectId(urlId);
-        try {
-            System.out.println("Sending rescan request...");
-            urlScan.reAnalyze(apikey);
-            
-            System.out.println("Waiting for analysis to complete...");
-            waitForAnalysis(urlScan, apikey);
-            
-            System.out.println("Rescan completed successfully!");
-        } catch (Exception e) {
-            System.out.println("Error during URL rescan: " + e.getMessage());
-        }
-    }
+
 }

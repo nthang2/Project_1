@@ -98,6 +98,9 @@ public class DomainScan extends Scan {
             System.out.println("ERROR: Can't write anything.");
             return;
         }
+        for(int i = 0; i < 101; i++) {
+            sheet.createRow(i+1);
+        }
 
         //WRITE BASIC INFO
         Row row = sheet.getRow(1);
@@ -159,25 +162,6 @@ public class DomainScan extends Scan {
             CellUtil.getCell(row, 16).setBlank();
         }
 
-        // WRITE OTHER DOMAIN INFOS
-        row = sheet.getRow(1);
-        CellUtil.getCell(row, 3).setCellValue("creation_date");
-        CellUtil.getCell(row, 4).setCellValue("whois_date");
-        CellUtil.getCell(row, 5).setCellValue("tld");
-        CellUtil.getCell(row, 8).setCellValue("registrar");
-        CellUtil.getCell(row, 19).setCellValue("reputation");
-        CellUtil.getCell(row, 20).setCellValue(HARM);
-        CellUtil.getCell(row, 21).setCellValue(MAL);
-
-        json = getJson().getJSONObject("data").getJSONObject(GET_ATTR);
-        row = sheet.getRow(2);
-        CellUtil.getCell(row, 3).setCellValue(json.getLong("creation_date"));
-        CellUtil.getCell(row, 4).setCellValue(json.getLong("whois_date"));
-        CellUtil.getCell(row, 5).setCellValue(json.getString("tld"));
-        CellUtil.getCell(row, 8).setCellValue(json.getString("registrar"));
-        CellUtil.getCell(row, 19).setCellValue(json.getInt("reputation"));
-        CellUtil.getCell(row, 20).setCellValue(json.getJSONObject("total_votes").getInt(HARM));
-        CellUtil.getCell(row, 21).setCellValue(json.getJSONObject("total_votes").getInt(MAL));
 
         // WRITE CATEGORIES
         row = sheet.getRow(1);

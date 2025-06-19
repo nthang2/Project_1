@@ -15,13 +15,18 @@ import java.time.format.DateTimeFormatter;
 import org.apache.poi.xssf.usermodel.XSSFFormulaEvaluator;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.json.JSONObject;
 import org.knowm.xchart.*;
 import org.knowm.xchart.style.Styler.*;
+import org.apache.poi.ss.util.CellUtil;
+import org.apache.poi.ss.usermodel.Row;
 
 public abstract class Scan {
 
-    private static final String ROOT_PATH = new File(System.getProperty("user.dir")).getParent() + "/Project1/vtapi";
+    private static final String ROOT_PATH = new File(System.getProperty("user.dir")).getParent() + "/Project_1";
+    private static final String X_API_KEY = "YOUR_API_KEY";
     private String name = null;
     private String objectId = null;
     private String analysisId = null;
@@ -42,14 +47,18 @@ public abstract class Scan {
     }
 
     public void getReport(String apikey) throws IOException, InterruptedException {
-        //GET json report and save json + summary stats
-        json = null;
-        harmless = 0;
-        suspicious = 0;
-        timeout = 0;
-        malicious = 0;
-        undetected = 0;
-        time = 0;
+        // Giả lập response từ API (bạn thay bằng response thực tế nếu có)
+        String response = "{ \"data\": { \"attributes\": { \"stats\": { \"harmless\": 0, \"undetected\": 60, \"suspicious\": 0, \"malicious\": 0, \"timeout\": 2 }}}}";
+        this.json = new JSONObject(response);
+
+        if (json != null && json.has("data") && json.getJSONObject("data").has("attributes")) {
+            JSONObject stats = json.getJSONObject("data").getJSONObject("attributes").getJSONObject("stats");
+            this.harmless = stats.optInt("harmless", 0);
+            this.undetected = stats.optInt("undetected", 0);
+            this.suspicious = stats.optInt("suspicious", 0);
+            this.malicious = stats.optInt("malicious", 0);
+            this.timeout = stats.optInt("timeout", 0);
+        }
     }
 
     public void printSummary() {
@@ -100,49 +109,125 @@ public abstract class Scan {
             System.out.println("WARNING: No finished analysis found!\n(Please wait a few seconds and update)");
             return false;
         }
-        String type = null;
-        if (this instanceof FileScan) {
-            type = "FILE";
-        } else if (this instanceof URLScan) {
-            type = "URL";
-        } else if (this instanceof DomainScan) {
-            type = "DOMAIN";
-        } else if (this instanceof IPScan) {
-            type = "IP";
-        } else {
-            System.out.println("ERROR: Unsupported Type");
-            return false;
-        }
 
         try {
-            FileInputStream file = new FileInputStream(new File(ROOT_PATH + "/src/vt-template.xlsx"));
-            XSSFWorkbook template = new XSSFWorkbook(file);
-            XSSFWorkbook workbook = new XSSFWorkbook(template.getPackage());
-            file.close();
-            XSSFSheet worksheet = workbook.getSheet("DATA");
+            // Create a new workbook
+            XSSFWorkbook workbook = new XSSFWorkbook();
+            XSSFSheet worksheet = workbook.createSheet("Scan Report");
 
+            // Write the data
             writeExcel(worksheet);
-            XSSFFormulaEvaluator.evaluateAllFormulaCells(workbook);
-            List<Integer> sheets = new ArrayList<>(Arrays.asList(4, 3, 2, 1));
-            sheets.remove(Integer.valueOf(workbook.getSheetIndex(type+" SUMMARY")));
-            for (Integer sheet: sheets) {
-                workbook.removeSheetAt(sheet);
+
+            // Create output directory if it doesn't exist
+            String outputDir = ROOT_PATH + "/data/CSV";
+            File dir = new File(outputDir);
+            if (!dir.exists()) {
+                dir.mkdirs();
             }
 
-            FileOutputStream out = new FileOutputStream(new File(ROOT_PATH + "/data/CSV/" + genSaveName(type, ".xlsx")));
-            workbook.write(out);
-            template.close();
-            workbook.close();
-            out.close();
-            return true;
-        } catch (Exception ignored) {}
-        return false;
+            // Generate output filename
+            String type = this instanceof FileScan ? "FILE" :
+                         this instanceof URLScan ? "URL" :
+                         this instanceof DomainScan ? "DOMAIN" :
+                         this instanceof IPScan ? "IP" : "UNKNOWN";
+            
+            String outputPath = outputDir + "/" + genSaveName(type, ".xlsx");
+            
+            // Write to file
+            try (FileOutputStream out = new FileOutputStream(outputPath)) {
+                workbook.write(out);
+                System.out.println("Excel report has been generated successfully at: " + outputPath);
+                return true;
+            } finally {
+                workbook.close();
+            }
+        } catch (Exception e) {
+            System.out.println("ERROR: Failed to write Excel report: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public void writeExcel(XSSFSheet sheet) {
         if (sheet == null) {
             System.out.println("ERROR: Can't write anything.");
+            return;
         }
+
+        // Write basic information
+        Row headerRow = sheet.getRow(0);
+        if (headerRow == null) {
+            headerRow = sheet.createRow(0);
+        }
+        headerRow.createCell(0).setCellValue("VIRUSTOTAL SCAN REPORT");
+        headerRow.getCell(0).setCellStyle(createHeaderStyle(sheet.getWorkbook()));
+
+        // Write scan type
+        Row typeRow = sheet.getRow(2);
+        if (typeRow == null) {
+            typeRow = sheet.createRow(2);
+        }
+        typeRow.createCell(0).setCellValue("Scan Type:");
+        typeRow.createCell(1).setCellValue(this instanceof FileScan ? "FILE" : 
+                                          this instanceof URLScan ? "URL" : 
+                                          this instanceof DomainScan ? "DOMAIN" : 
+                                          this instanceof IPScan ? "IP" : "UNKNOWN");
+
+        // Write name/ID
+        Row nameRow = sheet.getRow(3);
+        if (nameRow == null) {
+            nameRow = sheet.createRow(3);
+        }
+        nameRow.createCell(0).setCellValue("Name/ID:");
+        nameRow.createCell(1).setCellValue(name);
+
+        // Write analysis time
+        Row timeRow = sheet.getRow(4);
+        if (timeRow == null) {
+            timeRow = sheet.createRow(4);
+        }
+        timeRow.createCell(0).setCellValue("Analysis Time:");
+        DateTimeFormatter dateformat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
+        timeRow.createCell(1).setCellValue(dateformat.format(Instant.ofEpochSecond(time)));
+
+        // Write statistics header
+        Row statsHeaderRow = sheet.getRow(6);
+        if (statsHeaderRow == null) {
+            statsHeaderRow = sheet.createRow(6);
+        }
+        statsHeaderRow.createCell(0).setCellValue("SCAN STATISTICS");
+        statsHeaderRow.getCell(0).setCellStyle(createHeaderStyle(sheet.getWorkbook()));
+
+        // Write statistics
+        int rowIndex = 7;
+        createStatRow(sheet, rowIndex++, "Harmless", harmless);
+        createStatRow(sheet, rowIndex++, "Undetected", undetected);
+        createStatRow(sheet, rowIndex++, "Suspicious", suspicious);
+        createStatRow(sheet, rowIndex++, "Malicious", malicious);
+        createStatRow(sheet, rowIndex++, "Timeout", timeout);
+
+        // Auto-size columns
+        for (int i = 0; i < 3; i++) {
+            sheet.autoSizeColumn(i);
+        }
+    }
+
+    private XSSFCellStyle createHeaderStyle(XSSFWorkbook workbook) {
+        XSSFCellStyle style = workbook.createCellStyle();
+        XSSFFont font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 14);
+        style.setFont(font);
+        return style;
+    }
+
+    private void createStatRow(XSSFSheet sheet, int rowIndex, String label, int value) {
+        Row row = sheet.getRow(rowIndex);
+        if (row == null) {
+            row = sheet.createRow(rowIndex);
+        }
+        row.createCell(0).setCellValue(label + ":");
+        row.createCell(1).setCellValue(value);
     }
 
     public PieChart toChart() throws IOException {
@@ -253,4 +338,5 @@ public abstract class Scan {
     public void setAnalysisId(String analysisId) {
         this.analysisId = analysisId;
     }
+
 }

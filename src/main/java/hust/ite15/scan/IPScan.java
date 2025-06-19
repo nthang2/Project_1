@@ -104,6 +104,9 @@ public class IPScan extends Scan {
             System.out.println("ERROR: Can't write anything.");
             return;
         }
+        for(int i = 0; i < 101; i++) {
+            sheet.createRow(i+1);
+        }
 
         //WRITE BASIC INFO
         Row row = sheet.getRow(1);

@@ -7,6 +7,18 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import org.json.JSONObject;
 import org.json.JSONArray;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.util.CellUtil;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.io.PrintWriter;
+import java.io.FileWriter;
 
 /**
  * Lớp FileBehaviours để lấy thông tin về hành vi của file từ VirusTotal API
@@ -19,6 +31,7 @@ public class FileBehaviours {
     private static final String ERR_ATTR = "error";
     private static final String ERR_MESS = "message";
     private static final String GET_ATTR = "attributes";
+    private static final String ROOT_PATH = new File(System.getProperty("user.dir")).getParent() + "/Project1/vtapi";
 
     /**
      * Lấy thông tin về hành vi của file từ VirusTotal API
@@ -69,7 +82,7 @@ public class FileBehaviours {
             System.out.println("\n>>> FILE BEHAVIOUR SUMMARY <<<");
             System.out.println("File ID: " + objectId);
 
-            if (json.has("data")) {
+            if (json.has("data") && !json.isNull("data") && json.get("data") instanceof JSONObject) {
                 JSONObject data = json.getJSONObject("data");
                 
                 // In thông tin về các API calls được highlight
@@ -173,6 +186,98 @@ public class FileBehaviours {
     }
 
     /**
+     * Ghi thông tin behaviour summary ra file TXT
+     */
+    public void printBehaviourSummaryToTxt(String filePath) {
+        if (json == null) {
+            System.out.println("No data available for behaviour summary.");
+            return;
+        }
+        try (PrintWriter writer = new PrintWriter(new FileWriter(filePath))) {
+            writer.println("\n>>> FILE BEHAVIOUR SUMMARY <<<");
+            writer.println("File ID: " + objectId);
+            if (json.has("data") && !json.isNull("data") && json.get("data") instanceof JSONObject) {
+                JSONObject data = json.getJSONObject("data");
+                if (data.has("calls_highlighted")) {
+                    writer.println("\nAPI Calls Highlighted:");
+                    JSONArray callsHighlighted = data.getJSONArray("calls_highlighted");
+                    for (int i = 0; i < callsHighlighted.length(); i++) {
+                        writer.println("- " + callsHighlighted.getString(i));
+                    }
+                }
+                if (data.has("files_opened")) {
+                    writer.println("\nFiles Opened:");
+                    JSONArray filesOpened = data.getJSONArray("files_opened");
+                    for (int i = 0; i < filesOpened.length(); i++) {
+                        writer.println("- " + filesOpened.getString(i));
+                    }
+                }
+                if (data.has("modules_loaded")) {
+                    writer.println("\nModules Loaded:");
+                    JSONArray modulesLoaded = data.getJSONArray("modules_loaded");
+                    for (int i = 0; i < modulesLoaded.length(); i++) {
+                        writer.println("- " + modulesLoaded.getString(i));
+                    }
+                }
+                if (data.has("mutexes_created")) {
+                    writer.println("\nMutexes Created:");
+                    JSONArray mutexesCreated = data.getJSONArray("mutexes_created");
+                    for (int i = 0; i < mutexesCreated.length(); i++) {
+                        writer.println("- " + mutexesCreated.getString(i));
+                    }
+                }
+                if (data.has("mutexes_opened")) {
+                    writer.println("\nMutexes Opened:");
+                    JSONArray mutexesOpened = data.getJSONArray("mutexes_opened");
+                    for (int i = 0; i < mutexesOpened.length(); i++) {
+                        writer.println("- " + mutexesOpened.getString(i));
+                    }
+                }
+                if (data.has("processes_terminated")) {
+                    writer.println("\nProcesses Terminated:");
+                    JSONArray processesTerminated = data.getJSONArray("processes_terminated");
+                    for (int i = 0; i < processesTerminated.length(); i++) {
+                        writer.println("- " + processesTerminated.getString(i));
+                    }
+                }
+                if (data.has("processes_tree")) {
+                    writer.println("\nProcesses Tree:");
+                    JSONArray processesTree = data.getJSONArray("processes_tree");
+                    for (int i = 0; i < processesTree.length(); i++) {
+                        JSONObject process = processesTree.getJSONObject(i);
+                        writer.println("- " + process.getString("name") + " (PID: " + process.getString("process_id") + ")");
+                    }
+                }
+                if (data.has("registry_keys_opened")) {
+                    writer.println("\nRegistry Keys Opened:");
+                    JSONArray registryKeysOpened = data.getJSONArray("registry_keys_opened");
+                    for (int i = 0; i < registryKeysOpened.length(); i++) {
+                        writer.println("- " + registryKeysOpened.getString(i));
+                    }
+                }
+                if (data.has("tags")) {
+                    writer.println("\nTags:");
+                    JSONArray tags = data.getJSONArray("tags");
+                    for (int i = 0; i < tags.length(); i++) {
+                        writer.println("- " + tags.getString(i));
+                    }
+                }
+                if (data.has("text_highlighted")) {
+                    writer.println("\nText Highlighted:");
+                    JSONArray textHighlighted = data.getJSONArray("text_highlighted");
+                    for (int i = 0; i < textHighlighted.length(); i++) {
+                        writer.println("- " + textHighlighted.getString(i));
+                    }
+                }
+            } else {
+                writer.println("No behaviour data available for this file.");
+            }
+        } catch (Exception e) {
+            System.out.println("Error writing behaviour summary to txt: " + e.getMessage());
+        }
+    }
+
+    /**
      * Lấy ID của file
      * @return ID của file
      */
@@ -195,4 +300,5 @@ public class FileBehaviours {
     public JSONObject getJson() {
         return json;
     }
+
 } 
